@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>瞭望哨详情</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <link rel="stylesheet" href="../css/base.css">
+    <link rel="stylesheet" href="../css/observation.css">
+    <!-- 引入vant样式 -->
+    <link rel="stylesheet" href="../css/vant-ui.css" />
+    <script src="../js/vue.min.js"></script>
+    <!-- 引入vant组件库 -->
+    <script src="../js/vantui.js"></script>
+    <script src='../js/global.js'></script>
+</head>
+
+<body>
+    <div id='observation-detail' v-cloak>
+        <div class="top-detail">
+            <!-- 报料详情 -->
+            <div class="detail">
+                <!-- 用户信息及状态 -->
+                <div class="message-top">
+                    <div class="user">
+                        <img :src="contribute_detail.avatar" alt="">
+                        <div class="user-info">
+                            <p>{{contribute_detail.nick_name}}</p>
+                            <p>{{contribute_detail.created_at}}</p>
+                        </div>
+                    </div>
+                    <div class="sub-message">
+                        <p
+                            :class="{'status':'true','status-red':contribute_detail['status-red'],'status-blue':contribute_detail['status-blue']}">
+                            {{contribute_detail.status.des}}</p>
+                    </div>
+                </div>
+                <!-- 报料内容 -->
+                <div class="message-content">
+                    {{contribute_detail.content}}
+                </div>
+                <div class="file-show">
+                    <div class="img-show">
+                        <img @click="previewImg(index)" :src="img.host+img.filename" alt=""
+                            v-for="(img,index) in contribute_detail.pics">
+                    </div>
+                    <div class="video-show">
+                        <video controls preload="none" :poster="contribute_detail.indexpic"
+                            v-for="video in contribute_detail.video">
+                            <source :src="video.m3u8" type="application/x-mpegURL">
+                            <source :src="video.m3u8" type="video/mp4">
+                        </video>
+                        <!-- <img src="../images/play.png" alt=""> -->
+                    </div>
+                </div>
+                <div class="location" v-if="showLocation">
+                    <img src="../images/location.png" alt="">
+                    <span>{{contribute_detail.location}}</span>
+                </div>
+            </div>
+            <!-- 回复 -->
+            <div class="response" v-if="showResponse">
+                <div class="response-tab">网信办回复</div>
+                <div class="response-content">{{opinion}}</div>
+                <div class="star">
+                    <p>本次评分</p>
+                    <div>
+                        <div class="judge">
+                            <van-rate v-model="scoreId" :size="25" color="#ffd21e" void-icon="star" void-color="#eee"
+                                allow-half readonly />
+                        </div>
+                        <p>{{score}}分</p>
+                    </div>
+                </div>
+            </div>
+            <!-- 评论 -->
+            <div class="comment-list" v-if="showComment">
+                <div class="comment-title">反馈信息</div>
+                <ul>
+                    <li v-for="comment in commentList">
+                        <!-- 头像 -->
+                        <img :src="comment.avatar" alt="">
+                        <div class="right-comment">
+                            <div class="user-info">
+                                <p>{{comment.nick_name}}</p>
+                                <p>{{comment.created_at}}</p>
+                            </div>
+                            <div class="comment-content">
+                                {{comment.content}}
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <div class="write-comment">
+            <img src="../images/edit.png" alt="">
+            <div @click="openEdit" class="edit-comment">说点什么吧</div>
+        </div>
+        <div class="back-edit" v-if="showEditBox" @click="closeEdit">
+            <div @click.stop="" class="spread-comment">
+                <div class="title-bar">
+                    <button class="cancel" @click="closeEdit">取消</button>
+                    <span>写评论</span>
+                    <button :disabled="disabledPublish" @click="publish">发布</button>
+                </div>
+                <textarea v-model="commentContent" placeholder="请输入评论内容" name="" id="" cols="30" rows="5"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/jquery.min.js"></script>
+    <script src="../js/smartcitysdk.js"></script>
+    <!-- 引入axios -->
+    <script src="../js/axios.min.js"></script>
+    <script src="../js/timeFormat.js"></script>
+    <script src="https://cdn.bootcss.com/vConsole/3.3.0/vconsole.min.js"></script>
+    <script src="https://cdn.bootcss.com/qs/6.7.0/qs.min.js"></script>
+    <script type="text/javascript">
+        // var vConsole = new VConsole();
+        new Vue({
+            el: "#observation-detail",
+            data() {
+                return {
+                    showComment: false,//是否显示评论区
+                    showEditBox: false,//是否显示写评论弹框
+                    showResponse: false,//是否显示回复内容
+                    showLocation: false,//是否显示定位
+                    commentContent: '',//评论内容
+                    disabledPublish: true,//内容为空发布按键禁用
+                    score: 0,//评分
+                    scoreId: 0,
+                    opinion: '',//回复
+                    id: '',//详情页id
+                    contribute_detail: {//报料详情
+                        'status-red': '',
+                        'status-blue': '',
+                        avatar: '',
+                        nick_name: '',
+                        status: {
+                            des: '',
+                            status: ''
+                        },
+                        content: '',
+                        pics: [],
+                        video: [],
+                        indexpic: '',
+                        created_at: '',
+                        location: ''
+                    },
+                    commentList: [],//评论列表
+                    stars: [{// 评分列表
+                        id: 1,
+                        score: 0,
+                    },
+                    {
+                        id: 2,
+                        score: 5,
+                    },
+                    {
+                        id: 3,
+                        score: 10,
+                    },
+                    {
+                        id: 4,
+                        score: 20,
+                    },
+                    {
+                        id: 5,
+                        score: 50,
+                    }]
+                }
+
+            },
+            created() {
+                this.getDataDetail();
+                this.getCommentList();
+            },
+            computed: {
+            },
+            watch: {
+                commentContent(newVal) {
+                    if (newVal != '') {
+                        this.disabledPublish = false
+                    } else {
+                        this.disabledPublish = true
+                    }
+                }
+            },
+            methods: {
+                // 获取详情页信息
+                getDataDetail() {
+                    let id = window.location.search.substring(4);
+                    this.id = id;
+                    axios.get(`${apihost}/api/lws/watchtower_detail.php?id=${id}&access_token=${localStorage.getItem('access_token')}`).then((res) => {
+                        if (res) {
+                            var item = res.data[0];
+                            // 对是否有用户信息的几种情况做出判断
+                            if (item['member'] == null) {
+                                this.contribute_detail.avatar = '../images/user_info.png'
+                                this.contribute_detail.nick_name = '瞭望哨管理员'
+                            } else if (item['member'] != null && item['member']['avatar'] == '') {
+                                this.contribute_detail.avatar = '../images/user_info.png'
+                                if (item['member']['nick_name'] != null) {
+                                    this.contribute_detail.nick_name = item['member']['nick_name']
+                                } else {
+                                    this.contribute_detail.nick_name = '瞭望哨管理员'
+                                }
+                            } else {
+                                this.contribute_detail.nick_name = item['member']['nick_name']
+                                this.contribute_detail.avatar = `${imghost}/${item['member']['avatar']}`
+                            }
+                            this.contribute_detail.content = item['content']
+                            console.log(item['addr'])
+                            if (item['addr'] != '' && item['addr'] != 'undefined') {
+                                this.contribute_detail.location = item['addr']
+                                this.showLocation = true;
+                            } else {
+                                this.showLocation = false;
+                            }
+                            this.contribute_detail.status = {
+                                des: item['status']['des'],
+                                status: item['status']['status']
+                            }
+                            this.contribute_detail.created_at = getDateDiff(item['created_at'])
+                            this.contribute_detail.pics = item['pic']
+                            this.contribute_detail.video = item['video_url']
+                            this.contribute_detail.indexpic = item['indexpic']['host'] + item['indexpic']['filename']
+                            // 判断状态给状态色状态为0（待审核），1（正在处理）为蓝
+                            if (this.contribute_detail.status.status == 0 || this.contribute_detail.status.status == 1) {
+                                this.contribute_detail['status-red'] = false
+                                this.contribute_detail['status-blue'] = true
+                            } else {
+                                this.contribute_detail['status-red'] = true
+                                this.contribute_detail['status-blue'] = false
+                            }
+                            if (this.contribute_detail.status.status == 1) {
+                                this.showResponse = true
+                                this.opinion = '已处理完成'
+                                this.score = item['score']
+                                this.stars.forEach((star, index) => {
+                                    if (star.score == this.score) {
+                                        this.scoreId = star.id
+                                    }
+                                })
+                            } else {
+                                this.showResponse = false
+                            }
+                        }
+
+                    })
+                },
+                // 获取评论列表
+                getCommentList() {
+                    let id = this.id;
+                    axios.get(`${apihost}/api/v1/comment.php?access_token=${localStorage.getItem('access_token')}&mod_uniqueid=watchtower&app_uniqueid=watchtower&cid=${id}`).then((res) => {
+                        if (res && res.data && res.data.length) {
+                            var data = res.data;
+                            data.forEach(item => {
+                                var comment = {
+                                    content: item['content'],
+                                    created_at: getDateDiff(item['created_at'])
+                                }
+                                // 用户信息判断
+                                if (item['member_info'] == null) {
+                                    comment.avatar = '../images/user_info.png'
+                                    comment.nick_name = '瞭望哨管理员'
+                                } else if (item['member_info'] != null && item['member_info']['avatar'] == '') {
+                                    comment.avatar = '../images/user_info.png'
+                                    if (item['member_info']['nick_name'] != null) {
+                                        comment.nick_name = item['member_info']['nick_name']
+                                    } else {
+                                        comment.nick_name = '瞭望哨管理员'
+                                    }
+                                } else {
+                                    comment.nick_name = item['member_info']['nick_name']
+                                    comment.avatar = `${item['member_info']['avatar']['host']}${item['member_info']['avatar']['filename']}`
+                                }
+                                if (item['user'] && item['user']['username']) {
+                                    comment.nick_name = item['user']['username']
+                                }
+                                this.commentList.push(comment)
+                            });
+                            this.showComment = true;
+                        } else {
+                            this.showComment = false;
+                        }
+                    })
+                },
+                // 预览图片
+                previewImg(index) {
+                    let that = this
+                    SmartCity.clickImage({
+                        url: that.contribute_detail.pics[index].host + that.contribute_detail.pics[index].filename
+                    });
+                },
+                // 点击弹出编辑评论框
+                openEdit() {
+                    this.showEditBox = true;
+                },
+                // 点击其他地方编辑框
+                closeEdit() {
+                    this.showEditBox = false;
+                },
+                // 发布
+                publish() {
+                    if (this.commentContent.replace(/ /g, "") == "") {
+                        vant.Toast('评论内容不能为空格')
+                        this.closeEdit()
+                        return false
+                    }
+                    else {
+                        let id = this.id
+                        let data = {
+                            app_uniqueid: 'watchtower',
+                            content_id: Number(id),
+                            mod_uniqueid: 'watchtower',
+                            content: this.commentContent
+                        }
+                        axios.post(`${apihost}/api/v1/comment_create.php?access_token=${localStorage.getItem('access_token')}`, data).then(res => {
+                            vant.Toast("评论成功")
+                            this.commentList = []
+                            this.getCommentList();
+                        })
+                        this.closeEdit();
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>瞭望哨</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <link rel="stylesheet" href="../css/base.css">
+    <link rel="stylesheet" href="../css/observation.css">
+    <!-- 引入vant样式 -->
+    <link rel="stylesheet" href="../css/vant-ui.css" />
+    <script src="../js/jquery.min.js"></script>
+    <script src="../js/smartcitysdk.js"></script>
+    <script src="../js/vue.min.js"></script>
+    <script src="../js/axios.min.js"></script>
+    <script src="../js/timeFormat.js"></script>
+    <script src="../js/global.js"></script>
+    <!-- 引入vant组件库 -->
+    <script src="../js/vantui.js"></script>
+    <!-- 引入 ECharts 文件 -->
+    <script src="../js/echarts.min.js"></script>
+    <!-- <script src="../js/axios.min.js"></script> -->
+    <script src="https://cdn.bootcss.com/vConsole/3.3.0/vconsole.min.js"></script>
+</head>
+
+<body>
+
+    <div id='observation' v-cloak>
+        <div class='no-permission' v-if="user.permission==0">
+            <img src="../images/default.png" alt="">
+            <p>您暂时无权限查看，请浏览其他页面</p>
+        </div>
+        <div class="permission" v-else>
+            <!-- 列表 -->
+            <ul v-show="num==0" class="message-list">
+                <van-tabs v-model="activeTab" @change="activeTabChange">
+                    <van-tab :title="tab.title" v-for="(tab, index1) in tabList" :key="tab.id">
+                        <van-pull-refresh v-model="isLoading" success-text="刷新成功" @refresh="onRefresh(0)">
+                            <van-list v-model="loading" :finished="finished" finished-text="没有更多了" @load="loadMore(0)">
+                                <a v-for="(item, index) in contributeList" :key="item.id" @click="linkTo(index)">
+                                    <li>
+                                        <div class="message-top">
+                                            <div class="user">
+                                                <img :src="item.avatar" alt="">
+                                                <div class="user-info">
+                                                    <p>{{item.nick_name}}</p>
+                                                    <p>{{item.created_at}}</p>
+                                                </div>
+                                            </div>
+                                            <div class="sub-message">
+                                                <p
+                                                    :class="{'status':'true','status-red':item['status-red'],'status-blue':item['status-blue']}">
+                                                    {{item.status.des}}</p>
+                                                <p v-show="false">{{item.name}}</p>
+                                            </div>
+                                        </div>
+                                        <!-- 报料内容 -->
+                                        <div class="message-content">
+                                            {{item.content}}
+                                        </div>
+                                        <!-- 爆料图片视频 -->
+                                        <div class="file-show">
+                                            <div class="img-show" v-show="item.hasImgFile">
+                                                <img :style="item.fileStyle" v-for="img in item.pics"
+                                                    :src="img.host+img.filename+'?imageView/3/w/500/h/470/q/50'" alt="">
+                                            </div>
+                                            <div class="video-show" v-show="item.hasVideoFile"
+                                                v-for="video in item.video_url">
+                                                <video :style="item.fileStyle" :poster="item.indexpic"
+                                                    :src="video.m3u8"></video>
+                                                <img src="../images/play.png" alt="">
+                                            </div>
+                                        </div>
+                                    </li>
+                                </a>
+                            </van-list>
+                        </van-pull-refresh>
+                    </van-tab>
+                </van-tabs>
+            </ul>
+            <!-- 消息 -->
+            <ul v-show="num==1" class="notice-box">
+                <van-pull-refresh v-model="isLoading" success-text="刷新成功" @refresh="onRefresh(1)">
+                    <van-list v-model="loading" :finished="finished" finished-text="没有更多了" @load="loadMore(1)">
+                        <li v-for="message in messageList" :key="message.id">
+                            <div class="notice-time">{{message.time}}</div>
+                            <div class="notice-info-box">
+                                <div class="notice-title">
+                                    <div class="left-title">
+                                        <img src="../images/system_info.png" alt="">
+                                        <p>系统通知</p>
+                                    </div>
+                                    <div class="notice-status">{{message.status}}</div>
+                                </div>
+                                <div class="underlined"></div>
+                                <div class="notice-content">
+                                    {{message.content}}
+                                </div>
+                            </div>
+                        </li>
+                    </van-list>
+                </van-pull-refresh>
+            </ul>
+            <!-- 我的 -->
+            <ul v-show="num==2" class="my-box">
+                <van-pull-refresh v-model="isLoading" success-text="刷新成功" @refresh="onRefresh(2)">
+                    <div class="show-bk">
+                        <div class="show-box">
+                            <div class="show-info-box">
+                                <div class="all_num">
+                                    <p>{{myStatistic.total}}</p>
+                                    <span>总上报数</span>
+                                </div>
+                                <img src="../images/trend.png" alt="">
+                            </div>
+                            <div class="show-box-bottom">
+                                <p>今日新增</p>
+                                <div class="up_num">
+                                    <img src="../images/up-trend.png" alt="">
+                                    <span>{{myStatistic.total_today}}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 完成情况 -->
+                    <div class="finish-status">
+                        <div class="finish-title">
+                            <img src="../images/finish-status.png" alt="">
+                            <span>完成情况</span>
+                        </div>
+                        <!-- 已完成 ： 已回复 -->
+                        <div class="finish-status-box">
+                            <div class="finished">
+                                <p>{{myStatistic.finished_total}}</p>
+                                <span>已完成</span>
+                            </div>
+                            <div style="font-weight: bold;font-size: .15rem;">:</div>
+                            <div class="replied">
+                                <p>{{myStatistic.finished_reply}}</p>
+                                <span>已回复</span>
+                            </div>
+                        </div>
+                        <!-- 近一周完成数 -->
+                        <p class="chart-title">近一周完成数</p>
+                        <div id="main" style="width: 94vw;height: 30vh;"></div>
+                    </div>
+                </van-pull-refresh>
+            </ul>
+            <!-- 底部bar -->
+            <ul class="tab-bar">
+                <li @click="changeTab(0)">
+                    <img src="../images/new_active.png" alt="" v-show="num==0">
+                    <img src="../images/new.png" alt="" v-show="num!=0">
+                    <p>最新</p>
+                </li>
+                <a href="publish.html">
+                    <li class="edit">
+                        <img src="../images/publish.png" alt="">
+                        <p>编辑</p>
+                    </li>
+                </a>
+                <li @click="changeTab(2)">
+                    <img src="../images/mine_active.png" alt="" v-show="num==2">
+                    <img src="../images/mine.png" alt="" v-show="num!=2">
+                    <p>我的</p>
+                </li>
+                <li @click="changeTab(1)">
+                    <img src="../images/info_active.png" alt="" v-show="num==1">
+                    <img src="../images/info.png" alt="" v-show="num!=1">
+                    <p>消息</p>
+                </li>
+            </ul>
+        </div>
+
+
+    </div>
+    <script type="text/javascript">
+        // var vConsole = new VConsole();
+        new Vue({
+            el: "#observation",
+            data() {
+                return {
+                    num: 0,//哪个tab页
+                    activeTab: 0,//最新列表下tab页
+                    tabList: [{
+                        id: 0,
+                        title: '转办任务' 
+                    }, {
+                        id: 1,
+                        title: '上报信息'
+                    }],
+                    // 列表加载更多和下拉刷新
+                    isLoading: false,//是否下拉刷新
+                    loading: false,//加载更多
+                    finished: false,//没有更多了
+                    user: {
+                        permission: true,//是否有权限
+                        avatar: '',//头像
+                        nick_name: '', //昵称 
+                    },
+                    contributeList: [],//最新列表
+                    messageList: [],//消息列表
+                    myStatistic: {},//我的数据统计列表
+                    echart: {
+                        xAxis: [],//x轴日期
+                        series: [],
+                    },//我的页面echart图标参数
+                    page: 1//消息列表分页
+                }
+
+            },
+            created() {
+                localStorage.setItem('access_token', 'abf20c95dd79737c27882831765c0b0d')
+            },
+            mounted() {
+                this.getMyStatistic();
+            },
+            computed: {
+            },
+            methods: {
+                // 最新列表顶部tab切换
+                activeTabChange(value) {
+                    this.contributeList = []
+                    this.getContributeList(value)
+                },
+                // 跳转到详情页
+                linkTo(index) {
+                    let id = this.contributeList[index].id
+                    SmartCity.linkTo({
+                        innerLink: `www.yingxi.tv/contribute_h5/list/observation-detail.html?id=${id}`
+                    });
+
+                },
+                // 我的数据获取
+                async getMyStatistic() {
+                    // await smGetUserInfo()
+                    axios.get(`${apihost}/api/lws/statistics.php?access_token=${localStorage.getItem('access_token')}`).then((res) => {
+                        let that = this
+                        if (res.data.error_code == 0) {
+                            let statistic = res.data.data
+                            that.myStatistic = statistic
+                            statistic.finished_weekends.forEach((item, index) => {
+                                this.echart.xAxis[index] = formatDate1(item.date, 'mm/dd')
+                                this.echart.series[index] = item.count
+                            })
+                        }
+                    })
+                    this.drawEchart()
+                },
+                // 画echart图
+                drawEchart() {
+                    // 基于准备好的dom，初始化echarts实例
+                    var myChart = echarts.init(document.getElementById('main'))
+                    // 指定图表的配置项和数据
+                    var option = {
+                        color: ['#80FFA5'],
+                        tooltip: {
+                            trigger: 'axis',
+                            axisPointer: {
+                                type: 'line',
+                            }
+                        },
+                        grid: {
+                            left: '10%',
+                            top: '10%',
+                            right: '7%',
+                            bottom: '10%',
+                        },
+                        xAxis: [
+                            {
+                                type: 'category',
+                                boundaryGap: false,
+                                data: this.echart.xAxis,
+                                axisLine: {
+                                    lineStyle: {
+                                        color: "#aaa"
+                                    }
+                                }
+                            }
+                        ],
+                        yAxis: [
+                            {
+                                type: 'value',
+                                axisLine: {
+                                    lineStyle: {
+                                        color: "#aaa"
+                                    }
+                                }
+                            }
+                        ],
+                        series: [
+                            {
+                                type: 'line',
+                                stack: '总量',
+                                smooth: true,
+                                lineStyle: {
+                                    color: '#5FD4B1'
+                                },
+                                showSymbol: false,
+                                label: {
+                                    show: true,
+                                    position: 'top'
+                                },
+                                areaStyle: {
+                                    opacity: 0.8,
+                                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{
+                                        offset: 1,
+                                        color: '#EDFCF8'
+                                    }])
+                                },
+                                emphasis: {
+                                    focus: 'series'
+                                },
+                                data: this.echart.series
+                            }
+                        ]
+                    };
+
+                    // 使用刚指定的配置项和数据显示图表。
+                    myChart.setOption(option);
+                },
+                // 最新列表页调接口
+                async getContributeList(param) {
+                    // await smGetUserInfo()
+                    axios.get(`${apihost}/api/lws/watchtower_show.php?access_token=${localStorage.getItem('access_token')}&offset=${this.contributeList.length}&my_department=${param}`).then((res) => {
+                        let that = this
+                        that.user.permission = 1
+                        if (res && res.data && res.data.error_code == null) {
+                            if (res.data.length < 10) {
+                                that.finished = true
+                            } else {
+                                that.finished = false
+                            }
+                            res.data.forEach((item) => {
+                                let obj = {
+                                    id: item['id'],
+                                    created_at: getDateDiff(item['created_at']),
+                                    status: {
+                                        des: item['status']['des'],
+                                        status: item['status']['status']
+                                    },
+                                    name: item['name'],
+                                    content: item['content'],
+                                }
+                                // 判断状态给状态色状态为0（待审核），1（正在处理）为蓝
+                                if (obj.status.status == 0 || obj.status.status == 1) {
+                                    obj['status-red'] = false
+                                    obj['status-blue'] = true
+                                } else {
+                                    obj['status-red'] = true
+                                    obj['status-blue'] = false
+                                }
+                                // 根据文件数量修改展示样式
+                                let fileNum = item['pics'].length + item['video_url'].length
+                                if (fileNum == 1) {
+                                    obj.fileStyle = {
+                                        width: "100%",
+                                        height: "28vh"
+                                    }
+                                } else if (fileNum == 2) {
+                                    obj.fileStyle = {
+                                        width: "46vw",
+                                        height: "22vh"
+                                    }
+                                } else {
+                                    obj.fileStyle = {
+                                        width: "30vw",
+                                        height: "12vh"
+                                    }
+                                }
+                                // 规则：图片数量大于等于3且视频存在时，仅显示两条图片一条视频
+                                if (item['pics'].length != 0) {
+                                    if (item['pics'].length >= 3 && item['video_url'].length == 0) {
+                                        obj.pics = [item['pics']['0'], item['pics']['1'], item['pics']['2']]
+                                    } else if (item['pics'].length >= 3 && item['video_url'].length != 0) {
+                                        obj.pics = [item['pics']['0'], item['pics']['1']]
+                                    }
+                                    else {
+                                        obj.pics = item['pics']
+                                    }
+                                    obj.hasImgFile = true
+                                } else {
+                                    obj.hasImgFile = false
+                                }
+                                if (item['video_url'].length != 0) {
+                                    obj.video_url = item.video_url
+                                    obj.indexpic = item.indexpic['host'] + item.indexpic['filename']
+                                    obj.hasVideoFile = true
+                                } else {
+                                    obj.hasVideoFile = false
+                                }
+                                // 对是否有用户信息的几种情况做出判断
+                                if (item['member'] == null) {
+                                    obj.avatar = '../images/user_info.png'
+                                    obj.nick_name = '瞭望哨管理员'
+                                } else if (item['member'] != null && item['member']['avatar'] == '') {
+                                    obj.avatar = '../images/user_info.png'
+                                    if (item['member']['nick_name'] != null) {
+                                        obj.nick_name = item['member']['nick_name']
+                                    } else {
+                                        obj.nick_name = '瞭望哨管理员'
+                                    }
+                                } else {
+                                    obj.nick_name = item['member']['nick_name']
+                                    obj.avatar = `${imghost}/${item['member']['avatar']}`
+                                }
+                                that.contributeList.push(obj)
+                            });
+                        } else if (res.data.error_code == '1003') {
+                            // 没有授权跳无授权页面
+                            that.user.permission = 0
+                            that.finished = true
+                        } else {
+                            that.user.permission = 0
+                            that.finished = true
+                        }
+                    })
+                },
+                // 获取消息消息页数据
+                async getMessageList(pageParam) {
+                    // await smGetUserInfo()
+                    let that = this
+                    if (pageParam == 1) {
+                        that.page = pageParam;
+                    }
+                    let page = that.page;
+                    axios.get(`${apihost}/api/lws/message.php?access_token=${localStorage.getItem('access_token')}&per_num=5&page=${page}`).then(res => {
+                        that.page++
+                        if (res.data.error_code == 0) {
+                            if (res.data.data.data.length < 5) {
+                                that.finished = true
+                            } else {
+                                that.finished = false
+                            }
+                            let data = res.data.data.data
+                            if (res && res.data) {
+                                data.forEach(item => {
+                                    let obj = {
+                                        id: item.id,
+                                        status: item.operate_name,
+                                        time: getDateDiff(item.created_at),
+                                        content: item.title,
+                                    }
+                                    that.messageList.push(obj)
+                                })
+                            }
+                        }
+                    })
+                },
+                // 切换tab页
+                changeTab(index) {
+                    this.num = index;
+                    this.onRefresh(index)
+                },
+                // 下拉刷新
+                onRefresh(index) {
+                    let that = this
+                    that.isLoading = false
+                    if (index == 0) {
+                        that.contributeList = []
+                        that.getContributeList(this.activeTab)
+                    } else if (index == 1) {
+                        that.messageList = []
+                        that.getMessageList(1)
+                    } else if (index == 2) {
+                        that.getMyStatistic()
+                    }
+                    that.finished = true
+                    that.loading = false
+                },
+                // 加载更多
+                loadMore(index) {
+                    if (index == 0) {
+                        this.getContributeList(this.activeTab)
+                    } else if (index == 1) {
+                        this.getMessageList()
+                    }
+                    setTimeout(() => {
+                        this.loading = false
+                    }, 1000)
+                },
+            }
+        });
+    </script>
+</body>
+
+</html>

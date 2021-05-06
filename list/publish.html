@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>发布页</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <link rel="stylesheet" href="../css/base.css">
+    <link rel="stylesheet" href="../css/observation.css">
+    <!-- 引入vant样式 -->
+    <link rel="stylesheet" href="../css/vant-ui.css" />
+    <script src="../js/global.js"></script>
+</head>
+
+
+<body>
+    <div id='publish' v-cloak>
+        <div class="topic-bar" @click="showSelect">
+            <span>主题</span>
+            <div class="selectTopic">
+                <span>{{topic}}</span>
+                <img src="../images/pull-down.png" :class="{'hover-up':isShowSelect,'hover-down':!isShowSelect}" alt="">
+            </div>
+            <div class="topic-select-back" v-if="isShowSelect" @click="closeSelect">
+                <div class="topic-select">
+                    <span @click="chooseTopic(index)" :class="{topicActive:index==topicId}"
+                        v-for="(item,index) in topicSelctArr" :key="item['id']">{{item['name']}}</span>
+                </div>
+            </div>
+        </div>
+        <div class="publish-content">
+            <div class="text-area">
+                <textarea @input="setHeight($event)" rows="1" class="text-content" v-model="form.newsContent"
+                    placeholder="请输入内容（必填）"></textarea>
+                <!-- 文件上传 -->
+                <div class="file-preview">
+                    <div class="imgFile" v-for="(item,index) in imgFileList">
+                        <img :src="item" width="300" height="300" alt="">
+                        <img class="shut-down" @click="deleteImgFile(index)" src="../images/shut-down.png" />
+                    </div>
+                    <div class="videoFile" v-for="(item,index) in videoFileList">
+                        <video poster :src="item"></video>
+                        <img class="play" src="../images/play.png" alt="">
+                        <img class="shut-down" @click="deleteVideoFile(index)" src="../images/shut-down.png" />
+                    </div>
+                </div>
+            </div>
+            <div class="location" @click="openLocation">
+                <img src="../images/location.png" alt="">
+                <span>{{form.location}}</span>
+            </div>
+            <div class="bottom-bar">
+                <img @click="uploadImg" src="../images/up-image.png" alt="">
+                <img @click="uploadVideo" src="../images/up-video.png" alt="">
+                <input type="file" id="uploadImg" multiple accept="image/*" @change="fileCountCheck(9,'image')">
+                <input capture type="file" id="uploadVideo" multiple accept="video/*"
+                    @change="fileCountCheck(1,'video')">
+            </div>
+            <button @click="submit">提交</button>
+        </div>
+        <van-dialog v-model="phoneShow" title="请输入手机号码" show-cancel-button @confirm="confirmTel">
+            <input type="text" v-model="form.tel">
+        </van-dialog>
+    </div>
+
+    <script src="../js/jquery.min.js"></script>
+    <script src="../js/vue.min.js"></script>
+    <script src="../js/smartcitysdk.js"></script>
+    <script src="../js/timeFormat.js"></script>
+    <!-- 引入vant组件库 -->
+    <script src="../js/vantui.js"></script>
+    <!-- 引入axios -->
+    <script src="../js/axios.min.js"></script>
+    <script src="https://cdn.bootcss.com/vConsole/3.3.0/vconsole.min.js"></script>
+    <script src="../js/common.js"></script>
+    <script type="text/javascript">
+        var vConsole = new VConsole();
+        new Vue({
+            el: "#publish",
+            data() {
+                return {
+                    phoneShow: false,//是否显示手机号确认弹框
+                    isShowSelect: false, //是否显示选择框
+                    topic: '', //报料主题
+                    topicId: 0, //报料主题id
+                    imgFileList: [],//上传图片列表预览
+                    imgFileList1: [],//上传图片列表
+                    videoFileList: [],//上传视频列表预览
+                    videoFileList1: [],//上传视频列表
+                    form: {
+                        selectTopic: '',
+                        newsContent: '',
+                        location: '显示位置',//定位
+                        member_name: '',//用户昵称
+                        tel: '',//用户手机号,
+                        latitude: '',//经纬度
+                        longitude: ''
+                    },
+                    topicSelctArr: [],//报料主题列表
+                }
+            },
+            created() {
+                this.getTopicList();
+            },
+            methods: {
+                setHeight() {
+                    let ch = $('.text-content')
+                    ch.get(0).style.height = 'auto'
+                    ch.get(0).style.height = ch.get(0).scrollHeight + 'px'
+                    this.contentHeightCheck();
+                },
+                // 初始化选择列表
+                getTopicList() {
+                    axios.get(`${apihost}/api/lws/watchtower_sort.php?father_id=1&access_token=${localStorage.getItem('access_token')}`).then((res) => {
+                        if (res && res.data && res.data.length) {
+                            var data = res.data;
+                            data.forEach((item) => {
+                                var obj = {
+                                    name: item.name,
+                                    id: item.id
+                                }
+                                this.topicSelctArr.push(obj)
+                                // this.topicId = res.data[0].id
+                                this.topicId = 0
+                                this.topic = res.data[0].name//初始化为列表第一项
+                            })
+
+                        }
+                    })
+                },
+                // 选择专题
+                chooseTopic(index) {
+                    this.topicId = index;
+                    this.topic = this.topicSelctArr[this.topicId].name;
+                    this.closeSelect();
+                },
+                // 展示下拉菜单内容
+                showSelect() {
+                    this.isShowSelect = !this.isShowSelect;
+                },
+                // 关闭下拉框
+                closeSelect() {
+                    // this.isShowSelect = false;
+                    this.$set(this, this.isShowSelect, false);
+                },
+                // 是否开启定位
+                openLocation() {
+                    var that = this;
+                    if (that.form.location != '显示位置') {
+                        vant.Dialog.confirm({
+                            title: '提示',
+                            message: '确定要删除地址信息吗',
+                        })
+                            .then(() => {
+                                that.form.location = '显示位置'
+                            })
+                            .catch(() => {
+                                // on cancel
+                            });
+                    } else {
+                        SmartCity.getLocation(function (res) {
+                            that.form.location = res.provinces + res.city + res.area + res.address
+                            that.form.longitude = res.longitude
+                            that.form.latitude = res.latitude
+                        });
+                    }
+
+
+                },
+                // 上传图片
+                uploadImg() {
+                    $('#uploadImg').click()
+                },
+                // 上传视频
+                uploadVideo() {
+                    $('#uploadVideo').click()
+                },
+                // 删除图片文件
+                deleteImgFile(index) {
+                    this.imgFileList.splice(index, 1)
+                },
+                //删除视频文件
+                deleteVideoFile(index) {
+                    this.videoFileList.splice(index, 1)
+                },
+                // 判断内容高度定位文件位置
+                contentHeightCheck() {
+                    var editHeight = $('.text-area').height()//编辑区高度（all）
+                    var contentHeight = $('.text-content').height()//内容区
+                    var fileHeight = $('.file-preview').height()//文件区高度
+                    if (editHeight > contentHeight + fileHeight) {
+                        $('.file-preview').css('bottom', 0)
+                    } else {
+                        $('.file-preview').css('bottom', '')
+                    }
+                },
+                // 限制上传视频及图片数量
+                fileCountCheck(maxFileNum, type) {
+                    var that = this
+                    that.contentHeightCheck()
+                    if (window.File && window.FileList) {
+                        // 上传类型为图片
+                        if (type == 'image') {
+                            let imgFiles = document.getElementById('uploadImg').files
+                            let imgFilesLen = that.imgFileList.length + imgFiles.length
+                            if (imgFilesLen > maxFileNum) {
+                                // 不符合数量的处理
+                                vant.Toast(`为保证上传效率,每次提交仅限${maxFileNum}张图片`)
+                                return false;
+                            } else {
+                                for (let i = 0; i < imgFiles.length; i++) {
+                                    let file = imgFiles[i];
+                                    let reader = new FileReader()
+                                    reader.onload = function (e) {
+                                        that.imgFileList.push(reader['result'])
+                                        that.imgFileList1.push(file)
+                                    }
+                                    //              console.log(that.imgFileList1)
+                                    reader.readAsDataURL(file)
+                                }
+                                $('#uploadImg').val('')//解决不能重复上传统一文件问题
+                            }
+                        } else {
+                            // 上传类型为视频
+                            let videoFiles = document.getElementById('uploadVideo').files
+                            let videoFilesLen = that.videoFileList.length + videoFiles.length
+                            if (videoFilesLen > maxFileNum) {
+                                vant.Toast(`为保证上传效率,每次提交仅限音频或视频${maxFileNum}种流媒体附件`)
+                                return false
+                            } else {
+                                for (let i = 0; i < videoFiles.length; i++) {
+                                    let file = videoFiles[i];
+                                    let reader = new FileReader();
+                                    reader.onload = function (e) {
+                                        that.videoFileList.push(reader['result'])
+                                        that.videoFileList1.push(file)
+                                    }
+                                    reader.readAsDataURL(file)
+                                }
+                                $('#uploadVideo').val('')
+                            }
+                        }
+                    } else {
+                        // 不支持FileAPI
+                        window.alert('抱歉，你的浏览器不支持FileAPI，请升级浏览器！')
+                        return false;
+
+                    }
+                },
+                // 确定电话号码
+                confirmTel() {
+                    var that = this
+                    var form = new FormData()
+                    // 字数和附件校验
+                    if (that.form.newsContent.length < 10) {
+                        vant.Toast('该栏目所发布的最少字数为10')
+                        return
+                    } else {
+                        form.append('content', that.form.newsContent)
+                    }
+                    if (!(that.videoFileList.length || that.imgFileList1.length)) {
+                        vant.Toast('请添加需上传的附件')
+                        return
+                    }
+                    if (that.form.location != '显示位置') {
+                        form.append('addr', that.form.location)
+                        form.append('latitude', that.form.latitude)
+                        form.append('longitude', that.form.longitude)
+                    }
+                    if (that.videoFileList1.length) {
+                        form.append('videofile', that.videoFileList1[0])
+                    }
+                    if (that.imgFileList1.length) {
+                        for (var i = 0; i < that.imgFileList1.length; i++) {
+                            form.append(`photos[${i}]`, that.imgFileList1[i])
+                        }
+                    }
+                    form.append('sort_id', that.topicSelctArr[that.topicId].id)
+                    form.append('access_token', localStorage.getItem('access_token'))
+                    SmartCity.getUserInfo(function (res) {
+                        if (res && res.userInfo) {
+                            that.form.member_name = res.userInfo.username
+                            // that.form.tel = res.userInfo.telephone
+                        } else {
+                            SmartCity.goLogin();
+                        }
+                    })
+                    form.append('member_name', that.form.member_name)
+                    form.append('tel', that.form.tel)
+                    vant.Toast.loading({
+                        duration: 0, // 持续展示 toast
+                        forbidClick: true,
+                        message: "加载中..."
+                    });
+                    // 调接口post数据
+                    axios.post(`${apihost}/api/lws/watchtower.php?`, form).then(res => {
+                        vant.Toast.clear();
+                        if (res.data.ErrorCode == undefined) {
+                            vant.Toast('提交成功')
+                        } else {
+                            vant.Toast(res.data.ErrorText)
+                        }
+                        setTimeout(function () {
+                            window.history.go(-1)
+                        }, 1500)
+                    })
+                },
+                // 提交按钮提交数据
+                submit() {
+                    var that = this
+                    SmartCity.getUserInfo(function (res) {
+                        if (res && res.userInfo) {
+                            that.form.tel = res.userInfo.telephone
+                        } else {
+                            SmartCity.goLogin();
+                        }
+                    })
+                    this.phoneShow = true
+
+                }
+            }
+
+        });
+    </script>
+</body>
+
+</html>
