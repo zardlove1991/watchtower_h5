@@ -211,7 +211,7 @@
 
             },
             created() {
-                // localStorage.setItem('access_token', 'abf20c95dd79737c27882831765c0b0d')
+                localStorage.setItem('access_token', 'abf20c95dd79737c27882831765c0b0d')
             },
             mounted() {
                 this.getMyStatistic();
@@ -222,7 +222,7 @@
                 // 最新列表顶部tab切换
                 activeTabChange(value) {
                     this.contributeList = []
-                    this.onRefresh(0)
+                    this.getContributeList(value)
                 },
                 // 跳转到详情页
                 linkTo(index) {
@@ -234,7 +234,7 @@
                 },
                 // 我的数据获取
                 async getMyStatistic() {
-                    await smGetUserInfo()
+                    // await smGetUserInfo()
                     axios.get(`${apihost}/api/lws/statistics.php?access_token=${localStorage.getItem('access_token')}`).then((res) => {
                         let that = this
                         if (res.data.error_code == 0) {
@@ -322,7 +322,7 @@
                 },
                 // 最新列表页调接口
                 async getContributeList(param) {
-                    await smGetUserInfo()
+                    // await smGetUserInfo()
                     axios.get(`${apihost}/api/lws/watchtower_show.php?access_token=${localStorage.getItem('access_token')}&offset=${this.contributeList.length}&my_department=${param}`).then((res) => {
                         let that = this
                         that.user.permission = 1
@@ -419,7 +419,7 @@
                 },
                 // 获取消息消息页数据
                 async getMessageList(pageParam) {
-                    await smGetUserInfo()
+                    // await smGetUserInfo()
                     let that = this
                     if (pageParam == 1) {
                         that.page = pageParam;
