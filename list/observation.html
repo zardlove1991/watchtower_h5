@@ -37,7 +37,7 @@
                 <van-tabs v-model="activeTab" @change="activeTabChange">
                     <van-tab :title="tab.title" v-for="(tab, index1) in tabList" :key="tab.id">
                         <van-pull-refresh v-model="isLoading" success-text="刷新成功" @refresh="onRefresh(0)">
-                            <van-list v-model="loading" :finished="finished" finished-text="没有更多了" @load="loadMore(0)">
+                            <van-list v-model="loading" :finished="finished" finished-text="没有更多了" @load="loadMore(0)" :immediate-check="false">
                                 <a v-for="(item, index) in contributeList" :key="item.id" @click="linkTo(index)">
                                     <li>
                                         <div class="message-top">
@@ -214,7 +214,8 @@
                 // localStorage.setItem('access_token', 'abf20c95dd79737c27882831765c0b0d')
             },
             mounted() {
-                this.getMyStatistic();
+                this.loadMore(0)
+                this.getMyStatistic()
             },
             computed: {
             },
@@ -234,7 +235,6 @@
                 },
                 // 我的数据获取
                 async getMyStatistic() {
-                    await smGetUserInfo()
                     axios.get(`${apihost}/api/lws/statistics.php?access_token=${localStorage.getItem('access_token')}`).then((res) => {
                         let that = this
                         if (res.data.error_code == 0) {
@@ -245,8 +245,8 @@
                                 this.echart.series[index] = item.count
                             })
                         }
+                        that.drawEchart()
                     })
-                    this.drawEchart()
                 },
                 // 画echart图
                 drawEchart() {
@@ -327,6 +327,10 @@
                         let that = this
                         that.user.permission = 1
                         if (res && res.data && res.data.error_code == null) {
+                            if(res.data[0].is_admin) {
+                                $('.van-tabs__wrap').css('display', 'block')
+                                $('.message-list .van-pull-refresh').css('height', '86.2vh')
+                            }
                             if (res.data.length < 10) {
                                 that.finished = true
                             } else {
@@ -419,7 +423,6 @@
                 },
                 // 获取消息消息页数据
                 async getMessageList(pageParam) {
-                    await smGetUserInfo()
                     let that = this
                     if (pageParam == 1) {
                         that.page = pageParam;

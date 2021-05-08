@@ -800,6 +800,9 @@ body {
   height: 86.2vh;
   overflow: auto !important;
 }
+.van-tabs__wrap {
+  display: none;
+}
 .van-list {
   height: auto !important;
 }
