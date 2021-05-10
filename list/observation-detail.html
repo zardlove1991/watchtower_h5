@@ -191,11 +191,11 @@
             methods: {
                 // 获取详情页信息
                 getDataDetail() {
-                    let id = window.location.search.substring(4);
+                    let id = window.location.search.substring(4)
                     this.id = id;
                     axios.get(`${apihost}/api/lws/watchtower_detail.php?id=${id}&access_token=${localStorage.getItem('access_token')}`).then((res) => {
                         if (res) {
-                            var item = res.data[0];
+                            var item = res.data[0]
                             // 对是否有用户信息的几种情况做出判断
                             if (item['member'] == null) {
                                 this.contribute_detail.avatar = '../images/user_info.png'
@@ -212,7 +212,6 @@
                                 this.contribute_detail.avatar = `${imghost}/${item['member']['avatar']}`
                             }
                             this.contribute_detail.content = item['content']
-                            console.log(item['addr'])
                             if (item['addr'] != '' && item['addr'] != 'undefined') {
                                 this.contribute_detail.location = item['addr']
                                 this.showLocation = true;

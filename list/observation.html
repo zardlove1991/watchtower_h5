@@ -31,13 +31,17 @@
             <img src="../images/default.png" alt="">
             <p>您暂时无权限查看，请浏览其他页面</p>
         </div>
-        <div class="permission" v-else>
+        <div class="page-loading" v-if="isPageLoading">
+            <van-loading color="#1989fa"/>
+        </div>
+        <div class="permission" v-if="user.permission==1">
             <!-- 列表 -->
             <ul v-show="num==0" class="message-list">
                 <van-tabs v-model="activeTab" @change="activeTabChange">
                     <van-tab :title="tab.title" v-for="(tab, index1) in tabList" :key="tab.id">
                         <van-pull-refresh v-model="isLoading" success-text="刷新成功" @refresh="onRefresh(0)">
-                            <van-list v-model="loading" :finished="finished" finished-text="没有更多了" @load="loadMore(0)" :immediate-check="false">
+                            <van-list v-model="loading" :finished="finished" finished-text="没有更多了" @load="loadMore(0)"
+                                :immediate-check="false">
                                 <a v-for="(item, index) in contributeList" :key="item.id" @click="linkTo(index)">
                                     <li>
                                         <div class="message-top">
@@ -185,17 +189,18 @@
                     activeTab: 0,//最新列表下tab页
                     tabList: [{
                         id: 0,
-                        title: '转办任务' 
+                        title: '转办任务'
                     }, {
                         id: 1,
                         title: '上报信息'
                     }],
                     // 列表加载更多和下拉刷新
                     isLoading: false,//是否下拉刷新
+                    isPageLoading:true,//页面loading
                     loading: false,//加载更多
                     finished: false,//没有更多了
                     user: {
-                        permission: true,//是否有权限
+                        permission: 1,//是否有权限
                         avatar: '',//头像
                         nick_name: '', //昵称 
                     },
@@ -236,6 +241,7 @@
                 // 我的数据获取
                 async getMyStatistic() {
                     axios.get(`${apihost}/api/lws/statistics.php?access_token=${localStorage.getItem('access_token')}`).then((res) => {
+                        that.isPageLoading = false
                         let that = this
                         if (res.data.error_code == 0) {
                             let statistic = res.data.data
@@ -321,105 +327,111 @@
                     myChart.setOption(option);
                 },
                 // 最新列表页调接口
-                async getContributeList(param) {
-                    await smGetUserInfo()
-                    axios.get(`${apihost}/api/lws/watchtower_show.php?access_token=${localStorage.getItem('access_token')}&offset=${this.contributeList.length}&my_department=${param}`).then((res) => {
-                        let that = this
-                        that.user.permission = 1
-                        if (res && res.data && res.data.error_code == null) {
-                            if(res.data[0].is_admin) {
-                                $('.van-tabs__wrap').css('display', 'block')
-                                $('.message-list .van-pull-refresh').css('height', '86.2vh')
-                            }
-                            if (res.data.length < 10) {
-                                that.finished = true
-                            } else {
-                                that.finished = false
-                            }
-                            res.data.forEach((item) => {
-                                let obj = {
-                                    id: item['id'],
-                                    created_at: getDateDiff(item['created_at']),
-                                    status: {
-                                        des: item['status']['des'],
-                                        status: item['status']['status']
-                                    },
-                                    name: item['name'],
-                                    content: item['content'],
-                                }
-                                // 判断状态给状态色状态为0（待审核），1（正在处理）为蓝
-                                if (obj.status.status == 0 || obj.status.status == 1) {
-                                    obj['status-red'] = false
-                                    obj['status-blue'] = true
-                                } else {
-                                    obj['status-red'] = true
-                                    obj['status-blue'] = false
-                                }
-                                // 根据文件数量修改展示样式
-                                let fileNum = item['pics'].length + item['video_url'].length
-                                if (fileNum == 1) {
-                                    obj.fileStyle = {
-                                        width: "100%",
-                                        height: "28vh"
+                getContributeList(param) {
+                    smGetUserInfo()
+                        .then(() => {
+                            this.user.permission = 1
+                            axios.get(`${apihost}/api/lws/watchtower_show.php?access_token=${localStorage.getItem('access_token')}&offset=${this.contributeList.length}&my_department=${param}`).then((res) => {
+                                let that = this
+                                that.isPageLoading = false
+                                if (res && res.data && res.data.error_code == null) {
+                                    if (res.data[0].is_admin) {
+                                        $('.van-tabs__wrap').css('display', 'block')
+                                        $('.message-list .van-pull-refresh').css('height', '86.2vh')
                                     }
-                                } else if (fileNum == 2) {
-                                    obj.fileStyle = {
-                                        width: "46vw",
-                                        height: "22vh"
-                                    }
-                                } else {
-                                    obj.fileStyle = {
-                                        width: "30vw",
-                                        height: "12vh"
-                                    }
-                                }
-                                // 规则：图片数量大于等于3且视频存在时，仅显示两条图片一条视频
-                                if (item['pics'].length != 0) {
-                                    if (item['pics'].length >= 3 && item['video_url'].length == 0) {
-                                        obj.pics = [item['pics']['0'], item['pics']['1'], item['pics']['2']]
-                                    } else if (item['pics'].length >= 3 && item['video_url'].length != 0) {
-                                        obj.pics = [item['pics']['0'], item['pics']['1']]
-                                    }
-                                    else {
-                                        obj.pics = item['pics']
-                                    }
-                                    obj.hasImgFile = true
-                                } else {
-                                    obj.hasImgFile = false
-                                }
-                                if (item['video_url'].length != 0) {
-                                    obj.video_url = item.video_url
-                                    obj.indexpic = item.indexpic['host'] + item.indexpic['filename']
-                                    obj.hasVideoFile = true
-                                } else {
-                                    obj.hasVideoFile = false
-                                }
-                                // 对是否有用户信息的几种情况做出判断
-                                if (item['member'] == null) {
-                                    obj.avatar = '../images/user_info.png'
-                                    obj.nick_name = '瞭望哨管理员'
-                                } else if (item['member'] != null && item['member']['avatar'] == '') {
-                                    obj.avatar = '../images/user_info.png'
-                                    if (item['member']['nick_name'] != null) {
-                                        obj.nick_name = item['member']['nick_name']
+                                    if (res.data.length < 10) {
+                                        that.finished = true
                                     } else {
-                                        obj.nick_name = '瞭望哨管理员'
+                                        that.finished = false
                                     }
+                                    res.data.forEach((item) => {
+                                        let obj = {
+                                            id: item['id'],
+                                            created_at: getDateDiff(item['created_at']),
+                                            status: {
+                                                des: item['status']['des'],
+                                                status: item['status']['status']
+                                            },
+                                            name: item['name'],
+                                            content: item['content'],
+                                        }
+                                        // 判断状态给状态色状态为0（待审核），1（正在处理）为蓝
+                                        if (obj.status.status == 0 || obj.status.status == 1) {
+                                            obj['status-red'] = false
+                                            obj['status-blue'] = true
+                                        } else {
+                                            obj['status-red'] = true
+                                            obj['status-blue'] = false
+                                        }
+                                        // 根据文件数量修改展示样式
+                                        let fileNum = item['pics'].length + item['video_url'].length
+                                        if (fileNum == 1) {
+                                            obj.fileStyle = {
+                                                width: "100%",
+                                                height: "28vh"
+                                            }
+                                        } else if (fileNum == 2) {
+                                            obj.fileStyle = {
+                                                width: "46vw",
+                                                height: "22vh"
+                                            }
+                                        } else {
+                                            obj.fileStyle = {
+                                                width: "30vw",
+                                                height: "12vh"
+                                            }
+                                        }
+                                        // 规则：图片数量大于等于3且视频存在时，仅显示两条图片一条视频
+                                        if (item['pics'].length != 0) {
+                                            if (item['pics'].length >= 3 && item['video_url'].length == 0) {
+                                                obj.pics = [item['pics']['0'], item['pics']['1'], item['pics']['2']]
+                                            } else if (item['pics'].length >= 3 && item['video_url'].length != 0) {
+                                                obj.pics = [item['pics']['0'], item['pics']['1']]
+                                            }
+                                            else {
+                                                obj.pics = item['pics']
+                                            }
+                                            obj.hasImgFile = true
+                                        } else {
+                                            obj.hasImgFile = false
+                                        }
+                                        if (item['video_url'].length != 0) {
+                                            obj.video_url = item.video_url
+                                            obj.indexpic = item.indexpic['host'] + item.indexpic['filename']
+                                            obj.hasVideoFile = true
+                                        } else {
+                                            obj.hasVideoFile = false
+                                        }
+                                        // 对是否有用户信息的几种情况做出判断
+                                        if (item['member'] == null) {
+                                            obj.avatar = '../images/user_info.png'
+                                            obj.nick_name = '瞭望哨管理员'
+                                        } else if (item['member'] != null && item['member']['avatar'] == '') {
+                                            obj.avatar = '../images/user_info.png'
+                                            if (item['member']['nick_name'] != null) {
+                                                obj.nick_name = item['member']['nick_name']
+                                            } else {
+                                                obj.nick_name = '瞭望哨管理员'
+                                            }
+                                        } else {
+                                            obj.nick_name = item['member']['nick_name']
+                                            obj.avatar = `${imghost}/${item['member']['avatar']}`
+                                        }
+                                        that.contributeList.push(obj)
+                                    });
+                                } else if (res.data.error_code == '1003') {
+                                    // 没有授权跳无授权页面
+                                    that.user.permission = 0
+                                    that.finished = true
                                 } else {
-                                    obj.nick_name = item['member']['nick_name']
-                                    obj.avatar = `${imghost}/${item['member']['avatar']}`
+                                    that.user.permission = 0
+                                    that.finished = true
                                 }
-                                that.contributeList.push(obj)
-                            });
-                        } else if (res.data.error_code == '1003') {
-                            // 没有授权跳无授权页面
-                            that.user.permission = 0
-                            that.finished = true
-                        } else {
-                            that.user.permission = 0
-                            that.finished = true
-                        }
-                    })
+                            })
+                        }).catch(() => {
+                            this.isPageLoading = false
+                            this.user.permission = 0
+                        })
                 },
                 // 获取消息消息页数据
                 async getMessageList(pageParam) {
@@ -429,6 +441,7 @@
                     }
                     let page = that.page;
                     axios.get(`${apihost}/api/lws/message.php?access_token=${localStorage.getItem('access_token')}&per_num=5&page=${page}`).then(res => {
+                        that.isPageLoading = false
                         that.page++
                         if (res.data.error_code == 0) {
                             if (res.data.data.data.length < 5) {

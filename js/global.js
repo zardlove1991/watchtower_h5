@@ -7,11 +7,12 @@ function smGetUserInfo() {
     return new Promise(function (res1, rej) {
         SmartCity.getUserInfo(function (res) {
             if (res && res.userInfo) {
-                let access_token = res.userInfo.userTokenKey;
+                let access_token = res.userInfo.userTokenKey
                 res1(access_token)
                 localStorage.setItem('access_token', access_token)
 
             } else {
+                rej("error")
                 SmartCity.goLogin()
             }
         })
