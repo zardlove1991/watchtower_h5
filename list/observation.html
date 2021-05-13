@@ -32,7 +32,7 @@
             <p>您暂时无权限查看，请浏览其他页面</p>
         </div>
         <div class="page-loading" v-if="isPageLoading">
-            <van-loading color="#1989fa"/>
+            <van-loading color="#1989fa" />
         </div>
         <div class="permission" v-if="user.permission==1">
             <!-- 列表 -->
@@ -111,6 +111,7 @@
                 <van-pull-refresh v-model="isLoading" success-text="刷新成功" @refresh="onRefresh(2)">
                     <div class="show-bk">
                         <div class="show-box">
+                            <p>您好，{{charactor[myStatistic.admin]}}</p>
                             <div class="show-info-box">
                                 <div class="all_num">
                                     <p>{{myStatistic.total}}</p>
@@ -196,9 +197,9 @@
                     }],
                     // 列表加载更多和下拉刷新
                     isLoading: false,//是否下拉刷新
-                    isPageLoading:true,//页面loading
+                    isPageLoading: true,//页面loading
                     loading: false,//加载更多
-                    finished: false,//没有更多了
+                    finished: true,//没有更多了
                     user: {
                         permission: 1,//是否有权限
                         avatar: '',//头像
@@ -207,6 +208,11 @@
                     contributeList: [],//最新列表
                     messageList: [],//消息列表
                     myStatistic: {},//我的数据统计列表
+                    charactor: [
+                        '瞭望哨-超级管理员',
+                        '瞭望哨-管理员',
+                        '瞭望哨-哨兵'
+                    ],
                     echart: {
                         xAxis: [],//x轴日期
                         series: [],
@@ -241,8 +247,8 @@
                 // 我的数据获取
                 async getMyStatistic() {
                     axios.get(`${apihost}/api/lws/statistics.php?access_token=${localStorage.getItem('access_token')}`).then((res) => {
-                        that.isPageLoading = false
                         let that = this
+                        that.isPageLoading = false
                         if (res.data.error_code == 0) {
                             let statistic = res.data.data
                             that.myStatistic = statistic

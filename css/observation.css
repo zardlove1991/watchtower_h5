@@ -291,8 +291,15 @@ body {
   top: 15%;
   position: absolute;
 }
+.my-box .show-bk .show-box>p {
+  height: 4vh;
+  font-family: SourceHanSansCN-Regular;
+  font-size: .15rem;
+  color: #9A9898;
+  padding-bottom: 1vh;
+}
 .my-box .show-bk .show-box .show-info-box {
-  padding-bottom: 2vh;
+  padding-bottom: 0vh;
   border-bottom: 1px solid #F6F6F6;
   display: flex;
   justify-content: space-between;
@@ -319,7 +326,7 @@ body {
 }
 
 .my-box .show-box-bottom {
-  height: 10vh;
+  height: 9vh;
   display: flex;
   justify-content: space-between;
   align-items: center;
