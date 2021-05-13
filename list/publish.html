@@ -112,20 +112,19 @@
                 },
                 // 初始化选择列表
                 getTopicList() {
-                    axios.get(`${apihost}/api/lws/watchtower_sort.php?father_id=1&access_token=${localStorage.getItem('access_token')}`).then((res) => {
+                    axios.get(`${apihost}/api/lws/watchtower_sort.php?sort_id=1&access_token=${localStorage.getItem('access_token')}`).then((res) => {
                         if (res && res.data && res.data.length) {
                             var data = res.data;
-                            data.forEach((item) => {
-                                var obj = {
-                                    name: item.name,
-                                    id: item.id
-                                }
-                                this.topicSelctArr.push(obj)
-                                // this.topicId = res.data[0].id
-                                this.topicId = 0
-                                this.topic = res.data[0].name//初始化为列表第一项
-                            })
-
+                            var obj = {
+                                name: '瞭望哨',
+                                id: 1
+                            }
+                            this.topicSelctArr.push(obj)
+                            // this.topicId = res.data[0].id
+                            this.topicId = 0
+                            this.topic = this.topicSelctArr[0].name//初始化为列表第一项
+                            // data.forEach((item) => {
+                            // })
                         }
                     })
                 },
@@ -151,13 +150,11 @@
                         vant.Dialog.confirm({
                             title: '提示',
                             message: '确定要删除地址信息吗',
-                        })
-                            .then(() => {
-                                that.form.location = '显示位置'
-                            })
-                            .catch(() => {
-                                // on cancel
-                            });
+                        }).then(() => {
+                            that.form.location = '显示位置'
+                        }).catch(() => {
+                            // on cancel
+                        });
                     } else {
                         SmartCity.getLocation(function (res) {
                             that.form.location = res.provinces + res.city + res.area + res.address
@@ -218,7 +215,6 @@
                                         that.imgFileList.push(reader['result'])
                                         that.imgFileList1.push(file)
                                     }
-                                    //              console.log(that.imgFileList1)
                                     reader.readAsDataURL(file)
                                 }
                                 $('#uploadImg').val('')//解决不能重复上传统一文件问题
