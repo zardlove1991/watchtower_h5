@@ -299,11 +299,13 @@ body {
   padding-bottom: 1vh;
 }
 .my-box .show-bk .show-box .show-info-box {
-  padding-bottom: 0vh;
+  padding-bottom: 2vh;
+  height: 11vh;
   border-bottom: 1px solid #F6F6F6;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  box-sizing: border-box;
 }
 .my-box .show-bk .show-box .show-info-box img {
   width: 1rem;
@@ -326,10 +328,11 @@ body {
 }
 
 .my-box .show-box-bottom {
-  height: 9vh;
+  height: 6vh;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  box-sizing: content-box;
 }
 .my-box .show-box-bottom p {
   font-size: .14rem;
