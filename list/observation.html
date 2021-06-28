@@ -111,7 +111,7 @@
                 <van-pull-refresh v-model="isLoading" success-text="刷新成功" @refresh="onRefresh(2)">
                     <div class="show-bk">
                         <div class="show-box">
-                            <p>您好，{{charactor[myStatistic.admin]}}</p>
+                            <p>您好，{{charactor[myStatistic.admin - 1]}}</p>
                             <div class="show-info-box">
                                 <div class="all_num">
                                     <p>{{myStatistic.total}}</p>
@@ -181,6 +181,9 @@
 
     </div>
     <script type="text/javascript">
+	 if(location.search.indexOf('debug') > -1) {
+        	var vConsole = new VConsole();
+   	 } 
         // var vConsole = new VConsole();
         new Vue({
             el: "#observation",
@@ -240,7 +243,7 @@
                 linkTo(index) {
                     let id = this.contributeList[index].id
                     SmartCity.linkTo({
-                        innerLink: `www.yingxi.tv/contribute_h5/list/observation-detail.html?id=${id}`
+                        innerLink: `https://magic.yingxi.tv/contribute_h5/list/observation-detail.html?id=${id}`
                     });
 
                 },
